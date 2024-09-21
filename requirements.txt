@@ -6,7 +6,6 @@ geopandas==1.0.1
 plotly==5.23.0
 ipywidgets==7.7.2
 matplotlib==3.9.2
-json
 rsconnect-python
 os
 openpyxl
