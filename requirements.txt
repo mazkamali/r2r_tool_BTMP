@@ -1,0 +1,12 @@
+ipyleaflet==0.19.2
+shinywidgets==0.3.3
+pandas==2.2.2
+shiny==1.0.0
+geopandas==1.0.1
+plotly==5.23.0
+ipywidgets==7.7.2
+matplotlib==3.9.2
+json
+rsconnect-python
+os
+openpyxl
