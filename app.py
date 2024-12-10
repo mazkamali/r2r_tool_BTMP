@@ -11,41 +11,31 @@ import matplotlib.cm as cm
 import matplotlib.colors as colors
 import json
 import os
+import numpy as np
 
 
 # Get the current script directory
 script_dir = os.path.dirname(__file__)
 
-# Path to the shapefile
-shapefile_path = os.path.join(script_dir, 'data', 'R2R_N_sgmnt_ID_v8.shp')
-
-# Path to the second external file (excel)
-excel_path = os.path.join(script_dir, 'data', '67985_BTMP_Network_Designation_Final_Scoring_100mile.xlsx')
-
-
-# load segment data
-df = pd.read_excel(excel_path)
-
-
-# Read the shapefile (replace 'path_to_your_shapefile.shp' with your actual shapefile path)
-# shapefile_path = "C:/Users/mkamali/PycharmProjects/Python Projects/PyShiny/data/R2R_N_sgmnt_ID_v8.shp"
-gdf = gpd.read_file(shapefile_path).to_crs("EPSG:4326")
-
-
-# add segment data
-gdf = gdf.merge(df, on="RIA_FRM_TO")
 
 # Function to create a color scale
 def get_color(value, vmin, vmax):
-    norm = colors.Normalize(vmin=vmin, vmax=vmax)
-    cmap = cm.get_cmap('Blues')  # Use a color map, e.g., 'coolwarm'
-    rgba = cmap(norm(value))
-    return colors.rgb2hex(rgba[:3])  # Convert RGBA to hex color
+
+    if value <= vmin:
+        return "green"
+    elif vmin < value <= vmax:
+        return "yellow"
+    else:
+        return "red"
+    # norm = colors.Normalize(vmin=vmin, vmax=vmax)
+    # cmap = cm.get_cmap('coolwarm')  # Use a color map, e.g., 'coolwarm'
+    # rgba = cmap(norm(value))
+    # #rgba = cmap(value)
+    # return colors.rgb2hex(rgba[:3])  # Convert RGBA to hex color
 
 
+def create_map(selected_nd_metric, gdf):
 
-
-def create_map(selected_nd_metric):
     # Get the centroid of the shapefile's geometry to center the map
     centroid = gdf.geometry.centroid.unary_union.centroid
     
@@ -56,7 +46,9 @@ def create_map(selected_nd_metric):
     gjson_data = gdf.to_json()
     gjson_data = json.loads(gjson_data)
     nd_metric_values = [feature['properties'].get(selected_nd_metric, 0) for feature in gjson_data['features']]
-    vmin, vmax = min(nd_metric_values), max(nd_metric_values)
+    tertiles = [np.quantile(nd_metric_values, 0.33), np.quantile(nd_metric_values, 0.66)]
+    #vmin, vmax = min(nd_metric_values), max(nd_metric_values)
+    vmin, vmax = tertiles[0], tertiles[1]
 
     # Assign colors to each feature based on the numerical attribute
     for feature in gjson_data['features']:
@@ -64,7 +56,7 @@ def create_map(selected_nd_metric):
         feature['properties']['style'] = {
             'color': get_color(value, vmin, vmax),
             'weight': 5,
-            'opacity': 0.7
+            'opacity': 0.8
         }
 
     # Create GeoJSON layer from the shapefile's GeoJSON data
@@ -73,9 +65,11 @@ def create_map(selected_nd_metric):
 
     # Define a dictionary to map attribute names to human-readable labels
     attribute_labels = {
-        "FINAL_score": "Final Score",
-        "Pe_G_M_S_y": "People and Goods Movement Score",
-        "Mak_Acc_S_y": "Market Access Score"
+        "final_score": "Final Score",
+        "mob_rel_con_score": "Mobility, Reliability, & Connectivity",
+        "safe_sec_score": "Safety and Security",
+        "asst_pres_tech_score" : "Asset Preservation and Technology",
+        "cust_stew_sust_eq_score" : "Customer Service, Stewardship, Sustainability, & Equity"
     }
 
     
@@ -87,7 +81,11 @@ def create_map(selected_nd_metric):
 
         # Get the middle coordinate of the line to display the popup
         coordinates = feature['geometry']['coordinates']
-        midpoint = coordinates[len(coordinates) // 2]  # Get the middle point of the line
+        
+        if(isinstance(coordinates[0][0], list)):
+            midpoint = coordinates[1][len(coordinates[1]) // 2]  # Get the middle point of the line
+        else:
+            midpoint = coordinates[len(coordinates) // 2]  # Get the middle point of the line
 
         # Use the human-readable label for the selected attribute
         label = attribute_labels.get(selected_nd_metric, selected_nd_metric)
@@ -101,15 +99,14 @@ def create_map(selected_nd_metric):
         
         m.add_layer(popup)
 
+    
     # Attach the click handler to the GeoJSON layer
     geo_json.on_click(on_click)
 
-
     # Add the GeoJSON layer to the map
     m.add_layer(geo_json)
-
+    
     # Add a color scale legend to the map
-
     legend_html = f"""
     <div style="
         position: fixed;
@@ -135,19 +132,37 @@ def create_map(selected_nd_metric):
 app_ui = ui.page_fluid(
     ui.h2("R2R Needs Assessment Tool"),
 
+    ui.row(
+
+        # input boxes for weights
+
+        ui.column(3,ui.input_numeric("mob_w","Mobility, Reliability, and Connectivity",25, min = 0, max = 100)),
+        ui.column(2,ui.input_numeric("safety_w","Safety and Security", 25, min = 0, max = 100)),
+        ui.column(4,ui.input_numeric("asset_w","Asset Preservation and Technology Deployment", 25, min = 0, max = 100)),
+        ui.column(3,ui.input_numeric("cust_w","Customer Service and Equity", 25, min = 0, max = 100))
+    ),#end of ui row
+
+
+    # warning message for when sum of inputs > 100
+    ui.row(
+        ui.div(
+
+            ui.output_text("warning_msg"),
+            style="color: red; font-weight: bold;"
+        ) 
+    ),
+
     # drop down to select a needs metric
     ui.input_select(  
         "nd_metric",  
         "Select a Needs Metric Below:",  
-        {"FINAL_score": "Final Score", "Pe_G_M_S_y": "People and Goods Movement Score", "Mak_Acc_S_y": "Market Access Score"},  
+        {"final_score": "Final Score",
+        "mob_rel_con_score": "Mobility, Reliability, & Connectivity",
+        "safe_sec_score": "Safety and Security",
+        "asst_pres_tech_score" : "Asset Preservation and Technology",
+        "cust_stew_sust_eq_score" : "Customer Service, Stewardship, Sustainability, & Equity"},  
     ),
 
-    # Add five input sliders for percentages
-    ui.input_slider("slider1", "Slider 1", min=0, max=100, value=20),
-    ui.input_slider("slider2", "Slider 2", min=0, max=100, value=20),
-    ui.input_slider("slider3", "Slider 3", min=0, max=100, value=20),
-    ui.input_slider("slider4", "Slider 4", min=0, max=100, value=20),
-    ui.input_slider("slider5", "Slider 5", min=0, max=100, value=20),
 
     # add the map 
     output_widget("map_output")
@@ -156,39 +171,61 @@ app_ui = ui.page_fluid(
 # Step 5: Define Server Logic
 def server(input, output, session):
 
-    # input metric weight logic
-    @reactive.Effect
-    def adjust_sliders():
-        sliders = [
-            input.slider1(),
-            input.slider2(),
-            input.slider3(),
-            input.slider4(),
-            input.slider5(),
-        ]
-        total = sum(sliders)
-
-        # Ensure the total remains 100 by proportionally adjusting the sliders
-        if total != 100:
-            ratio = 100 / total
-            ui.update_slider("slider1", value=int(input.slider1() * ratio))
-            ui.update_slider("slider2", value=int(input.slider2() * ratio))
-            ui.update_slider("slider3", value=int(input.slider3() * ratio))
-            ui.update_slider("slider4", value=int(input.slider4() * ratio))
-            ui.update_slider("slider5", value=int(input.slider5() * ratio))
-
-
-
-
     # map logic
     @output
     @render_widget
     def map_output():
          selected_nd_metric = input.nd_metric()
-         print(selected_nd_metric)
-         return create_map(selected_nd_metric)
+         gdf = compute_weighted_final_score()
+         return create_map(selected_nd_metric, gdf)
+
+
+    # warning message logic
+    @output
+    @render.text
+    def warning_msg():
+        # Show a warning if the input is greater than 100
+        weight_vals = [input.mob_w(), input.safety_w(), input.asset_w(), input.cust_w()]
+        if sum(weight_vals) > 100:
+            return "Warning: Sum of weights exceeds 100!"
+        elif sum(weight_vals) < 100:
+            return "Warning: Sum of weights is less than 100!"   
+        else:
+            return "" # No warning if condition is not met
     
     
+    # read date logic
+    @reactive.Calc
+    def read_data():
+        # Path to the second external file (excel)
+        excel_path = os.path.join(script_dir, 'data', 'Needs Assessment Criteria_Scores.xlsx')
+
+        # load corridor data
+        df = pd.read_excel(excel_path, sheet_name = "data_MAPPING")
+
+        # Path to the shapefile
+        shapefile_path = os.path.join(script_dir, 'data', 'R2R_N_corridors_Final_v2.shp')
+
+
+        # Read the shapefile (replace 'path_to_your_shapefile.shp' with your actual shapefile path)
+        gdf = gpd.read_file(shapefile_path).to_crs("EPSG:4326")
+
+
+        # add corridor data
+        gdf = gdf.merge(df, on="Corridor_j")
+
+        return gdf
+
+
+    # Weighting logic
+    @reactive.Calc
+    def compute_weighted_final_score():
+        gdf = read_data()
+        gdf['final_score'] = gdf['mob_rel_con_score'] * (input.mob_w()/100) + gdf['safe_sec_score'] * (input.safety_w()/100) + gdf['asst_pres_tech_score'] * (input.asset_w()/100) + gdf['cust_stew_sust_eq_score'] * (input.cust_w()/100)
+        return gdf
+
+
+
 
 # Create and Run the Shiny App
 app = App(app_ui, server)
