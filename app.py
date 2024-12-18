@@ -27,11 +27,7 @@ def get_color(value, vmin, vmax):
         return "yellow"
     else:
         return "red"
-    # norm = colors.Normalize(vmin=vmin, vmax=vmax)
-    # cmap = cm.get_cmap('coolwarm')  # Use a color map, e.g., 'coolwarm'
-    # rgba = cmap(norm(value))
-    # #rgba = cmap(value)
-    # return colors.rgb2hex(rgba[:3])  # Convert RGBA to hex color
+
 
 
 def create_map(selected_nd_metric, gdf):
@@ -60,7 +56,6 @@ def create_map(selected_nd_metric, gdf):
         }
 
     # Create GeoJSON layer from the shapefile's GeoJSON data
-    # geo_json = GeoJSON(data=gdf.__geo_interface__) 
     geo_json = GeoJSON(data=gjson_data)
 
     # Define a dictionary to map attribute names to human-readable labels
@@ -137,8 +132,8 @@ app_ui = ui.page_fluid(
         # input boxes for weights
 
         ui.column(3,ui.input_numeric("mob_w","Mobility, Reliability, and Connectivity",25, min = 0, max = 100)),
-        ui.column(2,ui.input_numeric("safety_w","Safety and Security", 25, min = 0, max = 100)),
-        ui.column(4,ui.input_numeric("asset_w","Asset Preservation and Technology Deployment", 25, min = 0, max = 100)),
+        ui.column(3,ui.input_numeric("safety_w","Safety and Security", 25, min = 0, max = 100)),
+        ui.column(3,ui.input_numeric("asset_w","Asset Preservation and Technology Deployment", 25, min = 0, max = 100)),
         ui.column(3,ui.input_numeric("cust_w","Customer Service and Equity", 25, min = 0, max = 100))
     ),#end of ui row
 
@@ -152,21 +147,55 @@ app_ui = ui.page_fluid(
         ) 
     ),
 
-    # drop down to select a needs metric
-    ui.input_select(  
-        "nd_metric",  
-        "Select a Needs Metric Below:",  
-        {"final_score": "Final Score",
-        "mob_rel_con_score": "Mobility, Reliability, & Connectivity",
-        "safe_sec_score": "Safety and Security",
-        "asst_pres_tech_score" : "Asset Preservation and Technology",
-        "cust_stew_sust_eq_score" : "Customer Service, Stewardship, Sustainability, & Equity"},  
-    ),
+    # row to contain metric drop down
+    ui.row(
+        # drop down to select a needs metric
+        ui.input_select(  
+            "nd_metric",  
+            "Select a Needs Metric Below:",  
+            {"final_score": "Final Score",
+            "mob_rel_con_score": "Mobility, Reliability, & Connectivity",
+            "safe_sec_score": "Safety and Security",
+            "asst_pres_tech_score" : "Asset Preservation and Technology",
+            "cust_stew_sust_eq_score" : "Customer Service, Stewardship, Sustainability, & Equity"},  
+        )
+    ),#end of row for metric drop down
 
+    # row containing both map and table
+    ui.div(
+        ui.row(
 
-    # add the map 
-    output_widget("map_output")
-)
+        ui.column(6, output_widget("map_output"), style = "padding: 0; margin: 0;"), # map column
+        ui.column(6, ui.output_table("table_output"), style = "padding: 0; margin: 0;") # table column
+
+        ),# end of row containing map and table
+        style="padding: 0; margin: 0;"  # Remove overall row padding
+
+    ),# end of map/table div
+
+    ui.tags.style(
+        """
+        /* Remove padding/margin and set table header style */
+        table.dataframe {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        table.dataframe th {
+            font-weight: bold;
+            background-color: #f8f9fa;
+            text-align: left;
+        }
+        table.dataframe td {
+            padding: 4px;
+            border: 1px solid #ddd;
+        }
+        """
+    )
+
+    
+) # end of fluid page
 
 # Step 5: Define Server Logic
 def server(input, output, session):
@@ -224,6 +253,25 @@ def server(input, output, session):
         gdf['final_score'] = gdf['mob_rel_con_score'] * (input.mob_w()/100) + gdf['safe_sec_score'] * (input.safety_w()/100) + gdf['asst_pres_tech_score'] * (input.asset_w()/100) + gdf['cust_stew_sust_eq_score'] * (input.cust_w()/100)
         return gdf
 
+    # produce table for output
+    @output
+    @render.table
+    def table_output():
+        metric = input.nd_metric()
+        table_data = compute_weighted_final_score().drop(columns = ["geometry",
+                                                                    "RIA_RTE_ID","SUM_Miles","MAX_Region",
+                                                                    "Shape_Leng","Corridor_j","Pe_G_M_score",
+                                                                    "Net_Desg_score","Needs_Cat","ND_Cat","Mark_Access_score"]).sort_values(by = metric, ascending=False).head(10)
+        table_data = table_data[["Corridor","Miles","mob_rel_con_score","safe_sec_score","asst_pres_tech_score","cust_stew_sust_eq_score","final_score","region"]]
+        table_data["Miles"] = table_data["Miles"].round(1)
+        table_data[["mob_rel_con_score","safe_sec_score","asst_pres_tech_score","cust_stew_sust_eq_score","final_score"]] = table_data[["mob_rel_con_score","safe_sec_score","asst_pres_tech_score","cust_stew_sust_eq_score","final_score"]].round(2)
+        table_data = table_data.rename(columns={"mob_rel_con_score": "Mobility, Reliability, and Connectivity Score",
+                                                "safe_sec_score" : "Safety & Security Score",
+                                                "cust_stew_sust_eq_score": "Customer Service, Stewrdship & Sustainability, & Equity Score",
+                                                "asst_pres_tech_score": "Asset Preservation & Technology Deployment Score",
+                                                "final_score": "Final Score",
+                                                "region": "Region"})
+        return table_data
 
 
 
