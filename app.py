@@ -36,7 +36,7 @@ def create_map(selected_nd_metric, gdf):
     centroid = gdf.geometry.centroid.unary_union.centroid
     
     # Create a base map centered on the shapefile's centroid
-    m = Map(center=(centroid.y, centroid.x), zoom=7, layout=Layout(width='80%', height='800px'), scroll_wheel_zoom = True, close_popup_on_click=False)  
+    m = Map(center=(centroid.y, centroid.x), zoom=7, layout=Layout(width='100%', height='800px'), scroll_wheel_zoom = True, close_popup_on_click=False)  
 
     # Extract numerical attributes to compute min and max for color scaling
     gjson_data = gdf.to_json()
@@ -102,16 +102,19 @@ def create_map(selected_nd_metric, gdf):
     m.add_layer(geo_json)
     
     # Add a color scale legend to the map
+    # Min Score: <i style="background:{get_color(vmin, vmin, vmax)};width:20px;height:10px;display:inline-block;"></i> {round(vmin, 1)}<br>
+    # Max Score: <i style="background:{get_color(vmax, vmin, vmax)};width:20px;height:10px;display:inline-block;"></i> {round(vmax, 1)}
     legend_html = f"""
     <div style="
         position: fixed;
-        bottom: 20px; left: 20px; width: 300px; height: 100px;
+        bottom: 20px; left: 20px; width: 150px; height: 140px;
         background-color: white; border:2px solid grey; z-index:9999; font-size:14px;
         padding: 10px; border-radius: 5px;
     ">
     <b>{attribute_labels[selected_nd_metric]}</b><br>
-    Min Score: <i style="background:{get_color(vmin, vmin, vmax)};width:20px;height:10px;display:inline-block;"></i> {round(vmin, 1)}<br>
-    Max Score: <i style="background:{get_color(vmax, vmin, vmax)};width:20px;height:10px;display:inline-block;"></i> {round(vmax, 1)}
+    Low &nbsp <i style="background:green;width:40px;height:10px;display:inline-block;"></i><br>
+    Medium &nbsp <i style="background:yellow;width:40px;height:10px;display:inline-block;"></i><br>
+    High &nbsp <i style="background:red;width:40px;height:10px;display:inline-block;"></i>
     </div>
     """
     legend = HTML(value=legend_html)
@@ -131,10 +134,10 @@ app_ui = ui.page_fluid(
 
         # input boxes for weights
 
-        ui.column(3,ui.input_numeric("mob_w","Mobility, Reliability, and Connectivity",25, min = 0, max = 100)),
-        ui.column(3,ui.input_numeric("safety_w","Safety and Security", 25, min = 0, max = 100)),
-        ui.column(3,ui.input_numeric("asset_w","Asset Preservation and Technology Deployment", 25, min = 0, max = 100)),
-        ui.column(3,ui.input_numeric("cust_w","Customer Service and Equity", 25, min = 0, max = 100))
+        ui.column(3,ui.input_numeric("mob_w","Mobility, Reliability, & Connectivity",25, min = 0, max = 100)),
+        ui.column(3,ui.input_numeric("safety_w","Safety & Security", 25, min = 0, max = 100)),
+        ui.column(3,ui.input_numeric("asset_w","Asset Preservation & Technology", 25, min = 0, max = 100)),
+        ui.column(3,ui.input_numeric("cust_w","Customer Service & Equity", 25, min = 0, max = 100))
     ),#end of ui row
 
 
@@ -165,8 +168,20 @@ app_ui = ui.page_fluid(
     ui.div(
         ui.row(
 
-        ui.column(6, output_widget("map_output"), style = "padding: 0; margin: 0;"), # map column
-        ui.column(6, ui.output_table("table_output"), style = "padding: 0; margin: 0;") # table column
+        ui.column(6, 
+                  
+                  ui.div(output_widget("map_output"), style = "padding: 0; margin: 0;"),
+                  style="padding: 0; margin: 0;"  # Remove spacing around the map column
+                  
+                  ),# map column
+
+
+        ui.column(6, 
+                  
+                  
+                  ui.div(ui.output_table("table_output"), style = "padding: 0; margin: 0;"),
+                  style="padding: 0; margin: 0;"  # Remove spacing around the table column
+                  ) # table column
 
         ),# end of row containing map and table
         style="padding: 0; margin: 0;"  # Remove overall row padding
@@ -175,7 +190,7 @@ app_ui = ui.page_fluid(
 
     ui.tags.style(
         """
-        /* Remove padding/margin and set table header style */
+        /* Remove all table spacing and style headers */
         table.dataframe {
             border-collapse: collapse;
             width: 100%;
@@ -191,6 +206,12 @@ app_ui = ui.page_fluid(
             padding: 4px;
             border: 1px solid #ddd;
         }
+
+        /* Remove all padding and margin globally */
+        .container, .row, .col, .shiny-output-error {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
         """
     )
 
@@ -202,7 +223,7 @@ def server(input, output, session):
 
     # map logic
     @output
-    @render_widget
+    @render_widget 
     def map_output():
          selected_nd_metric = input.nd_metric()
          gdf = compute_weighted_final_score()
@@ -271,6 +292,9 @@ def server(input, output, session):
                                                 "asst_pres_tech_score": "Asset Preservation & Technology Deployment Score",
                                                 "final_score": "Final Score",
                                                 "region": "Region"})
+        table_data["Rank"] = range(1,11)
+        columns = ["Rank"] + [col for col in table_data.columns if col != "Rank"]
+        table_data = table_data[columns]
         return table_data
 
 
