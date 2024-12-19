@@ -71,7 +71,7 @@ def create_map(selected_nd_metric, gdf):
     # Function to handle feature clicks and display a popup
     def on_click(event, feature, **kwargs):
         # Extract the name and population from the feature properties
-        name = feature['properties']['Corridor_j']
+        name = feature['properties']['Corridor']
         value = round(feature['properties'].get(selected_nd_metric, 0),1)
 
         # Get the middle coordinate of the line to display the popup
