@@ -192,6 +192,7 @@ app_ui = ui.page_fluid(
         """
         /* Remove all table spacing and style headers */
         table.dataframe {
+            font-size: 16px;
             border-collapse: collapse;
             width: 100%;
             margin: 0;
