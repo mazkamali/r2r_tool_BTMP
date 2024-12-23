@@ -63,7 +63,7 @@ def create_map(selected_nd_metric, gdf):
         "final_score": "Final Score",
         "mob_rel_con_score": "Mobility, Reliability, & Connectivity",
         "safe_sec_score": "Safety and Security",
-        "asst_pres_tech_score" : "Asset Preservation and Technology",
+        "asst_pres_tech_score" : "Design & Modernization",
         "cust_stew_sust_eq_score" : "Customer Service, Stewardship, Sustainability, & Equity"
     }
 
@@ -136,7 +136,7 @@ app_ui = ui.page_fluid(
 
         ui.column(3,ui.input_numeric("mob_w","Mobility, Reliability, & Connectivity",25, min = 0, max = 100)),
         ui.column(3,ui.input_numeric("safety_w","Safety & Security", 25, min = 0, max = 100)),
-        ui.column(3,ui.input_numeric("asset_w","Asset Preservation & Technology", 25, min = 0, max = 100)),
+        ui.column(3,ui.input_numeric("asset_w","Design & Modernization", 25, min = 0, max = 100)),
         ui.column(3,ui.input_numeric("cust_w","Customer Service & Equity", 25, min = 0, max = 100))
     ),#end of ui row
 
@@ -158,8 +158,8 @@ app_ui = ui.page_fluid(
             "Select a Needs Metric Below:",  
             {"final_score": "Final Score",
             "mob_rel_con_score": "Mobility, Reliability, & Connectivity",
-            "safe_sec_score": "Safety and Security",
-            "asst_pres_tech_score" : "Asset Preservation and Technology",
+            "safe_sec_score": "Safety & Security",
+            "asst_pres_tech_score" : "Design & Modernization",
             "cust_stew_sust_eq_score" : "Customer Service, Stewardship, Sustainability, & Equity"},  
         )
     ),#end of row for metric drop down
@@ -290,7 +290,7 @@ def server(input, output, session):
         table_data = table_data.rename(columns={"mob_rel_con_score": "Mobility, Reliability, and Connectivity Score",
                                                 "safe_sec_score" : "Safety & Security Score",
                                                 "cust_stew_sust_eq_score": "Customer Service, Stewrdship & Sustainability, & Equity Score",
-                                                "asst_pres_tech_score": "Asset Preservation & Technology Deployment Score",
+                                                "asst_pres_tech_score": "Design & Modernization Score",
                                                 "final_score": "Final Score",
                                                 "region": "Region"})
         table_data["Rank"] = range(1,11)
