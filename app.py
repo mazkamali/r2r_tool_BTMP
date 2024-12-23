@@ -107,8 +107,8 @@ def create_map(selected_nd_metric, gdf):
     legend_html = f"""
     <div style="
         position: fixed;
-        bottom: 20px; left: 20px; width: 150px; height: 140px;
-        background-color: white; border:2px solid grey; z-index:9999; font-size:14px;
+        bottom: 20px; left: 20px; width: 350px; height: 140px;
+        background-color: white; border:2px solid grey; z-index:9999; font-size:12px;
         padding: 10px; border-radius: 5px;
     ">
     <b>{attribute_labels[selected_nd_metric]}</b><br>
